@@ -23,7 +23,7 @@ LIGHTCYAN="\033[1;36m"
 WHITE="\033[1;37m"
 
 # Config
-DEBUG=true
+DEBUG=false
 SL_TOKEN=""
 SL_TOKEN_ENCODED=false
 SL_FRIENDS_URL="https://secondlife.com/my/loadWidgetContent.php?widget=widgetFriends"
