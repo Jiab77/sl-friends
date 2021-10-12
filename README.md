@@ -47,6 +47,16 @@ You can also use the `-c` or `--config` argument to specifiy another path or con
 
 Most of the configuration values can be also changed with the arguments described in the [usage](#usage) section.
 
+## Installation
+
+```bash
+# Make the script executable
+chmod -v +x sl-friends.sh
+
+# Make a symlink to /usr/bin (optional)
+sudo ln -sfvn `pwd`/sl-friends.sh /usr/bin/sl-friends
+```
+
 ## Usage
 
 ```
