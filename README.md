@@ -38,6 +38,7 @@ SL_HTML_ID="#widgetFriendsOnlineContent"
 SL_REFRESH_DELAY=5
 SL_STATUS_FILTER="online"
 SL_INTERNAL_NAMES=false
+CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
 WATCH_TITLE=true
 ```
 
@@ -71,6 +72,7 @@ Arguments:
     -f|--filter <online|offline> (Default: online)
     -u|--url <second-life-friends-url> (Default: https://secondlife.com/my/loadWidgetContent.php?widget=widgetFriends)
     -q|--html-id <second-life-html-id-to-target> (Default: #widgetFriendsOnlineContent)
+    -a|--user-agent <user-agent string> (Default: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36)
     -b|--base64 (Decode base64 encoded session token. [implies -t|--token] - Default: false)
     -i|--show-internal-names (Show Second Life internal names. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
