@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# Display Second Life friends from CLI (sl-friends.sh)
+# Made by Jiab77
+#
+# Trimmed output with suggestions from:
+# - https://unix.stackexchange.com/a/102021
+
 # Options
 set +o xtrace
 
@@ -22,7 +28,7 @@ LIGHTPURPLE="\033[1;35m"
 LIGHTCYAN="\033[1;36m"
 WHITE="\033[1;37m"
 
-# Config
+# Default config
 DEBUG=false
 SL_TOKEN=""
 SL_TOKEN_ENCODED=false
@@ -36,7 +42,7 @@ WATCH_TITLE=true
 # TMP_FILE="/tmp/`basename $0`"
 TMP_FILE="/dev/shm/`basename $0`"
 
-# Source config file if exist
+# User config (overrides default config)
 [[ -f "`dirname $0`/sl-friends.conf" ]] && source "`dirname $0`/sl-friends.conf"
 
 # Binaries
@@ -45,6 +51,7 @@ BIN_GREP=`which grep`
 BIN_HTMLQ=`which htmlq`
 BIN_SED=`which sed`
 BIN_WATCH=`which watch`
+BIN_WC=`which wc`
 
 # Test binaries
 if [[ $BIN_CURL == "" ]]; then
@@ -62,6 +69,9 @@ elif [[ $BIN_SED == "" ]]; then
 elif [[ $BIN_WATCH == "" ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}watch${WHITE}' binary.${NC}${NL}"
     exit 1
+elif [[ $BIN_WC == "" ]]; then
+    echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}wc${WHITE}' binary.${NC}${NL}"
+    exit 1
 fi
 
 # Functions
@@ -71,7 +81,11 @@ function make_temp_script {
     fi
 
     echo "#!/usr/bin/env bash" > $TMP_FILE
-    echo -e "$1" >> $TMP_FILE
+    echo "VIEW=$\(${1}\)" | sed -e 's|\\||g' >> $TMP_FILE
+    echo 'echo -e "${VIEW}"' >> $TMP_FILE
+    echo 'echo -ne "\nConnected: "' >> $TMP_FILE
+    echo 'echo "${VIEW}" | wc -l' >> $TMP_FILE
+    echo 'echo' >> $TMP_FILE
     chmod +x $TMP_FILE
 }
 function show_help {
@@ -128,9 +142,9 @@ EOF
 # Initial command
 # watch -n${SL_REFRESH_DELAY} "curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
 if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
 else
-    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
 fi
 
 # Arguments
@@ -152,9 +166,9 @@ while [ $# -ge 1 ]; do
             SL_TOKEN_ENCODED=true
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -168,9 +182,9 @@ while [ $# -ge 1 ]; do
             source $SL_CONFIG_FILE
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -183,9 +197,9 @@ while [ $# -ge 1 ]; do
             CURL_USER_AGENT="$2"
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -202,12 +216,12 @@ while [ $# -ge 1 ]; do
                 else
                     SL_TOKEN=$(read -sp "Enter your session token (output hidden for security reason): " TMP_TOKEN && echo -n $TMP_TOKEN | base64 -)
                 fi
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
                 if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo -n $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
                 else
-                    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                    MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
                 fi
             fi
 
@@ -223,9 +237,9 @@ while [ $# -ge 1 ]; do
             SL_STATUS_FILTER="$2"
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -238,9 +252,9 @@ while [ $# -ge 1 ]; do
             SL_FRIENDS_URL="$2"
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -253,9 +267,9 @@ while [ $# -ge 1 ]; do
             SL_HTML_ID="$2"
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed -e 's/ Resident//' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
@@ -271,9 +285,9 @@ while [ $# -ge 1 ]; do
             [[ $WATCH_TITLE == false ]] && WATCHOPTS="${WATCHOPTS} -t"
             # if [[ $SL_INTERNAL_NAMES == true ]]; then
             #     if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-            #         MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||'"
+            #         MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             #     else
-            #         MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||'"
+            #         MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             #     fi
             # fi
 
@@ -287,9 +301,9 @@ while [ $# -ge 1 ]; do
             SL_INTERNAL_NAMES=true
 
             if [[ ! -z $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=`echo $SL_TOKEN | base64 -d 2>/dev/null` $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             else
-                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||'"
+                MAGIC_COMMAND="curl --silent -A '${CURL_USER_AGENT}' -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' | sed -e 's/\">/) /' | sed -e 's|</span>||' | sed 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
 
             # make_temp_script "$MAGIC_COMMAND"
