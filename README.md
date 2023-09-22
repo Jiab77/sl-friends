@@ -12,7 +12,7 @@ This script is based on the research published [here](https://gist.github.com/Ji
 
 ## Dependencies
 
-Normally `grep`, `sed` and `watch` should be already available by default on every __Linux__ distributions but not [`htmlq`](https://github.com/mgdm/htmlq). To install it, simply run the following commands:
+Normally `awk`, `grep`, `sed` and `watch` should be already available by default on every __Linux__ distributions but not [`htmlq`](https://github.com/mgdm/htmlq). To install it, simply run the following commands:
 
 ```bash
 # Install 'cargo' (the Rust installer)
@@ -33,11 +33,14 @@ You can edit the script and modify the following values:
 DEBUG=true
 SL_TOKEN=""
 SL_TOKEN_ENCODED=false
-SL_FRIENDS_URL="https://secondlife.com/my/loadWidgetContent.php?widget=widgetFriends"
-SL_HTML_ID="#widgetFriendsOnlineContent"
+SL_FRIENDS_URL="https://secondlife.com/my/widget-friends.php"
+SL_FRIENDS_HTML_ID="#widgetFriendsOnlineContent"
+SL_LINDENS_URL="https://secondlife.com/my/widget-linden-dollar.php"
+SL_LINDENS_HTML_CLASS=".main-widget-content"
 SL_REFRESH_DELAY=5
 SL_STATUS_FILTER="online"
 SL_INTERNAL_NAMES=false
+SL_LINDENS=false
 CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
 WATCH_TITLE=true
 ```
@@ -75,6 +78,7 @@ Arguments:
     -a|--user-agent <user-agent string> (Default: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36)
     -b|--base64 (Decode base64 encoded session token. [implies -t|--token] - Default: false)
     -i|--show-internal-names (Show Second Life internal names. Default: false)
+    -l|--show-lindens (Show amount of owned linden dollars. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
     -r|--refresh <seconds> (Define 'watch' command refresh rate. Default: 5 seconds)
     -h|--help (Show this message)
@@ -86,8 +90,8 @@ Examples:
     sl-friends.sh
     sl-friends.sh -inr 10
     sl-friends.sh --show-internal-names --no-title --refresh 10
-    sl-friends.sh -t [ask for session-token]
-    sl-friends.sh --token [ask for session-token]
+    sl-friends.sh -t (it will ask for session-token)
+    sl-friends.sh --token (it will ask for session-token)
     sl-friends.sh -bt <base64 encoded session-token>
     sl-friends.sh --base64 --token <base64 encoded session-token>
     sl-friends.sh -f offline
