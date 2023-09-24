@@ -15,7 +15,7 @@
 #          ==> Groups: https://secondlife.com/my/widget-groups.php
 #          ==> Lindens: https://secondlife.com/my/widget-linden-dollar.php
 #
-# Version: 1.1.1
+# Version: 1.1.2
 
 # Options
 set +o xtrace
@@ -74,34 +74,34 @@ WATCH_TITLE=true
 TMP_FILE="/dev/shm/$(basename "$0")"
 
 # Binaries
-BIN_AWK=$(which awk)
-BIN_CURL=$(which curl)
-BIN_GREP=$(which grep)
-BIN_HTMLQ=$(which htmlq)
-BIN_SED=$(which sed)
-BIN_WATCH=$(which watch)
-BIN_WC=$(which wc)
+BIN_AWK=$(which awk 2>/dev/null)
+BIN_CURL=$(which curl 2>/dev/null)
+BIN_GREP=$(which grep 2>/dev/null)
+BIN_HTMLQ=$(which htmlq 2>/dev/null)
+BIN_SED=$(which sed 2>/dev/null)
+BIN_WATCH=$(which watch 2>/dev/null)
+BIN_WC=$(which wc 2>/dev/null)
 
 # Test binaries
-if [[ $BIN_AWK == "" ]]; then
+if [[ -z $BIN_AWK ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}awk${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_CURL == "" ]]; then
+elif [[ -z $BIN_CURL ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}curl${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_GREP == "" ]]; then
+elif [[ -z $BIN_GREP ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}grep${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_HTMLQ == "" ]]; then
+elif [[ -z $BIN_HTMLQ ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}htmlq${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_SED == "" ]]; then
+elif [[ -z $BIN_SED ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}sed${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_WATCH == "" ]]; then
+elif [[ -z $BIN_WATCH ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}watch${WHITE}' binary.${NC}${NL}"
     exit 1
-elif [[ $BIN_WC == "" ]]; then
+elif [[ -z $BIN_WC ]]; then
     echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Missing '${YELLOW}wc${WHITE}' binary.${NC}${NL}"
     exit 1
 fi
