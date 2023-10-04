@@ -15,7 +15,7 @@
 #          ==> Groups: https://secondlife.com/my/widget-groups.php
 #          ==> Lindens: https://secondlife.com/my/widget-linden-dollar.php
 #
-# Version: 1.1.3
+# Version: 1.2.0
 
 # Options
 set +o xtrace
@@ -67,6 +67,8 @@ CURL_USER_AGENTS=(
 )
 CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36"
 WATCH_TITLE=true
+USE_TOR=false
+TOR_PROXY="socks5h://127.0.0.1:9050"
 
 # User config (overrides default config)
 [[ -r "$(dirname "$0")/sl-friends.conf" ]] && source "$(dirname "$0")/sl-friends.conf"
@@ -192,6 +194,7 @@ Arguments:
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
     -r|--refresh <seconds> (Define 'watch' command refresh rate. Default: $SL_REFRESH_DELAY seconds)
     -h|--help (Show this message)
+    --tor (Proxy all requests to Tor using the SOCKS5 Hostname protocol)
     --debug (Enable debug output when disabled by default)
     -D (Disable debug output when enabled by default)
 
@@ -231,7 +234,7 @@ MAGIC_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=${SL_TOKEN}
 # Arguments
 WATCHOPTS="-n${SL_REFRESH_DELAY}"
 SHORTOPTS="b,c:,n,r:,t::,u:,q:,a:,f:,i,l,h,D"
-LONGOPTS="base64,config:,no-title,refresh,token::,url:,html-id:,user-agent:,filter:,show-internal-names,show-lindens,help,debug,thc"
+LONGOPTS="base64,config:,no-title,refresh,token::,url:,html-id:,user-agent:,filter:,show-internal-names,show-lindens,help,debug,tor,thc"
 ARGS=$(getopt -l "${LONGOPTS}" -o "${SHORTOPTS}" -- "$@")
 eval set -- "$ARGS"
 while [ $# -ge 1 ]; do
@@ -383,6 +386,7 @@ while [ $# -ge 1 ]; do
             WATCH_TITLE=false
             [[ $WATCH_TITLE == false ]] && WATCHOPTS="${WATCHOPTS} -t"
             ;;
+        --tor) USE_TOR=true ;;
         --debug) DEBUG=true ;;
         -D) DEBUG=false ;;
         -h|--help) show_help ; exit 0 ;;
@@ -399,6 +403,7 @@ done
 if [[ $DEBUG == true ]]; then
     echo -e "${NL}${LIGHTPURPLE}[DEBUG]${WHITE} Config:${NC}${NL}"
     echo "ARGS: $ARGS"
+    echo "USE_TOR: $USE_TOR"
     echo "SL_FRIENDS_URL: $SL_FRIENDS_URL"
     echo "SL_FRIENDS_HTML_ID: $SL_FRIENDS_HTML_ID"
     echo "SL_STATUS_FILTER: $SL_STATUS_FILTER"
@@ -409,7 +414,11 @@ if [[ $DEBUG == true ]]; then
     echo "SL_REFRESH_DELAY: $SL_REFRESH_DELAY"
     echo "WATCHOPTS: $WATCHOPTS"
     echo "REMAINING ARGS: $*"
-    echo "MAGIC_COMMAND: $MAGIC_COMMAND"
+    if [[ $USE_TOR == true ]]; then
+        echo "MAGIC_COMMAND: ${MAGIC_COMMAND/curl/curl -x $TOR_PROXY}"
+    else
+        echo "MAGIC_COMMAND: $MAGIC_COMMAND"
+    fi
     # exit 0
 fi
 
@@ -422,6 +431,12 @@ if [[ $SL_LINDENS == true ]]; then
     fi
 else
     LINDENS_COMMAND=""
+fi
+
+# Enable Tor proxying
+if [[ $USE_TOR == true ]]; then
+    MAGIC_COMMAND=${MAGIC_COMMAND/curl/"curl -x $TOR_PROXY"}
+    LINDENS_COMMAND=${LINDENS_COMMAND/curl/"curl -x $TOR_PROXY"}
 fi
 
 # Check if the required session-token is defined

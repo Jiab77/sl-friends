@@ -43,6 +43,7 @@ SL_INTERNAL_NAMES=false
 SL_LINDENS=false
 CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
 WATCH_TITLE=true
+USE_TOR=false
 ```
 
 Or simply rename the config template from `sl-friends.template.conf` to __`sl-friends.conf`__ at the root of the script.
@@ -82,6 +83,7 @@ Arguments:
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
     -r|--refresh <seconds> (Define 'watch' command refresh rate. Default: 5 seconds)
     -h|--help (Show this message)
+    --tor (Proxy all requests to Tor using the SOCKS5 Hostname protocol)
     --debug (Enable debug output when disabled by default)
     -D (Disable debug output when enabled by default)
 
