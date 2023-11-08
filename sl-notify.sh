@@ -7,7 +7,7 @@
 # References:
 # - https://wiki.archlinux.org/title/Desktop_notifications
 #
-# Version: 0.0.0
+# Version: 0.0.1
 
 # Options
 set +o xtrace
@@ -205,18 +205,18 @@ function notify() {
     # notify-send
     if [[ -n $BIN_NOTIFY ]]; then
       if [[ $DEBUG_MODE == true ]]; then
-        $BIN_NOTIFY "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} --print-id && NOTIF_SENT=true
+        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} --print-id && NOTIF_SENT=true
       else
-        $BIN_NOTIFY "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
+        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
       fi
 
     # zenity
     elif [[ -n $BIN_ZENITY ]]; then
-      $BIN_ZENITY --notification --window-icon="$3" --text "$1\\n$2" && NOTIF_SENT=true
+      zenity --notification --window-icon="$3" --text "$1\\n$2" && NOTIF_SENT=true
 
     # gdbus
     elif [[ -n $BIN_GDBUS ]]; then
-      $BIN_GDBUS call --session \
+      gdbus call --session \
                       --dest org.freedesktop.Notifications \
                       --object-path /org/freedesktop/Notifications \
                       --method org.freedesktop.Notifications.Notify \
