@@ -15,7 +15,7 @@
 #          ==> Groups: https://secondlife.com/my/widget-groups.php
 #          ==> Lindens: https://secondlife.com/my/widget-linden-dollar.php
 #
-# Version: 1.2.0
+# Version: 1.3.0
 
 # Options
 set +o xtrace
@@ -57,6 +57,7 @@ SL_REFRESH_DELAY=5
 SL_STATUS_FILTER="online"
 SL_INTERNAL_NAMES=false
 SL_LINDENS=false
+SL_NOTIFY=false
 CURL_USER_AGENTS=(
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36"
@@ -74,6 +75,9 @@ TOR_PROXY="socks5h://127.0.0.1:9050"
 [[ -r "$(dirname "$0")/sl-friends.conf" ]] && source "$(dirname "$0")/sl-friends.conf"
 
 # Internal config
+SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_PATH="$(realpath $SCRIPT_DIR)"
+NOTIF_STAT_FILE="/tmp/.sl-user-connected"
 # TMP_FILE="/tmp/$(basename "$0")"
 TMP_FILE="/dev/shm/$(basename "$0")"
 
@@ -85,6 +89,7 @@ BIN_HTMLQ=$(which htmlq 2>/dev/null)
 BIN_SED=$(which sed 2>/dev/null)
 BIN_WATCH=$(which watch 2>/dev/null)
 BIN_WC=$(which wc 2>/dev/null)
+BIN_NOTIFY="$SCRIPT_PATH/sl-notify.sh"
 
 # Test binaries
 if [[ -z $BIN_AWK ]]; then
@@ -117,8 +122,13 @@ make_temp_script() {
         echo -e "${NL}${LIGHTPURPLE}[DEBUG]${WHITE} Received: ${LIGHTGREEN}${1}${NC}${NL}"
     fi
 
+    local ARGC=$#
+
     cat > "$TMP_FILE" <<EOF
 #!/usr/bin/env bash
+
+# Options
+set +o xtrace
 
 # Available user-agents
 CURL_USER_AGENTS=(
@@ -160,8 +170,17 @@ gen_rand_ua() {
 }
 
 # Store generated magic commands
-FRIENDS=$\(${1}\)
-LINDENS=$\(${2}\)
+FRIENDS=$\($1\)
+LINDENS=$\($2\)
+
+# Experimental notifications
+if [[ $ARGC -eq 3 ]]; then
+    if [[ \$(echo -e "\${FRIENDS}" | grep -ciE "$3") -ne 0 ]]; then
+        "$BIN_NOTIFY" "$3"
+    else
+        [[ -f "$NOTIF_STAT_FILE" ]] && rm -f "$NOTIF_STAT_FILE"
+    fi
+fi
 
 # Display result and count
 echo -e "\${FRIENDS}"
@@ -169,8 +188,8 @@ echo ; echo -n "Connected: "
 [[ \$FRIENDS == "" ]] && echo "0" || echo "\${FRIENDS}" | wc -l ; echo
 [[ -n \$LINDENS ]] && echo "Total Linden Dollars: \$LINDENS"
 EOF
-    sed -e 's|\\||g' -i "$TMP_FILE"
 
+    sed -e 's|\\||g' -i "$TMP_FILE"
     chmod +x "$TMP_FILE"
 }
 
@@ -192,6 +211,7 @@ Arguments:
     -i|--show-internal-names (Show Second Life internal names. Default: false)
     -l|--show-lindens (Show amount of owned linden dollars. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
+    -N|--notify <user> (Notify when given user is connected.)
     -r|--refresh <seconds> (Define 'watch' command refresh rate. Default: $SL_REFRESH_DELAY seconds)
     -h|--help (Show this message)
     --tor (Proxy all requests to Tor using the SOCKS5 Hostname protocol)
@@ -203,6 +223,8 @@ Examples:
     $(basename "$0")
     $(basename "$0") -inr 10
     $(basename "$0") --show-internal-names --no-title --refresh 10
+    $(basename "$0") --refresh 10 --notify john.doe
+    $(basename "$0") -r 10 -N john.doe
     $(basename "$0") -t (it will ask for session-token)
     $(basename "$0") --token (it will ask for session-token)
     $(basename "$0") -bt <base64 encoded session-token>
@@ -220,9 +242,9 @@ Error codes:
     2 - Missing Second Life session token
     3 - Given config file does not exist
 
-Credit:
+Author:
 
-Jiab77 - https://twitter.com/jiab77
+Jiab77
 
 EOF
 
@@ -233,8 +255,9 @@ MAGIC_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=${SL_TOKEN}
 
 # Arguments
 WATCHOPTS="-n${SL_REFRESH_DELAY}"
-SHORTOPTS="b,c:,n,r:,t::,u:,q:,a:,f:,i,l,h,D"
-LONGOPTS="base64,config:,no-title,refresh,token::,url:,html-id:,user-agent:,filter:,show-internal-names,show-lindens,help,debug,tor,thc"
+SHORTOPTS="b,c:,N:,r:,t::,u:,q:,a:,f:,n,i,l,h,D"
+LONGOPTS="config:,notify:,refresh:,token::,url:,html-id:,user-agent:,filter:"
+LONGOPTS+=",base64,filter:,no-title,show-internal-names,show-lindens,help,debug,tor,thc"
 ARGS=$(getopt -l "${LONGOPTS}" -o "${SHORTOPTS}" -- "$@")
 eval set -- "$ARGS"
 while [ $# -ge 1 ]; do
@@ -246,7 +269,6 @@ while [ $# -ge 1 ]; do
             ;;
         -b|--base64)
             unset MAGIC_COMMAND
-            # unset SL_TOKEN_ENCODED
             SL_TOKEN_ENCODED=true
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -257,8 +279,6 @@ while [ $# -ge 1 ]; do
             ;;
         -c|--config)
             unset MAGIC_COMMAND
-            # unset SL_TOKEN
-            # unset SL_TOKEN_ENCODED
             SL_CONFIG_FILE="$2"
 
             [[ ! -r $SL_CONFIG_FILE ]] && echo -e "${NL}${LIGHTRED}[ERROR]${WHITE} Specified config file '${YELLOW}${2}${WHITE}' does not exist.${NC}${NL}" && exit 3
@@ -282,7 +302,6 @@ while [ $# -ge 1 ]; do
             ;;
         -a|--user-agent)
             unset MAGIC_COMMAND
-            # unset CURL_USER_AGENT
             CURL_USER_AGENT="$2"
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -319,7 +338,6 @@ while [ $# -ge 1 ]; do
             ;;
         -f|--filter)
             unset MAGIC_COMMAND
-            # unset SL_STATUS_FILTER
             SL_STATUS_FILTER="$2"
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -332,7 +350,6 @@ while [ $# -ge 1 ]; do
             ;;
         -u|--url)
             unset MAGIC_COMMAND
-            # unset SL_FRIENDS_URL
             SL_FRIENDS_URL="$2"
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -345,7 +362,6 @@ while [ $# -ge 1 ]; do
             ;;
         -q|--html-id)
             unset MAGIC_COMMAND
-            # unset SL_FRIENDS_HTML_ID
             SL_FRIENDS_HTML_ID="$2"
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -356,9 +372,13 @@ while [ $# -ge 1 ]; do
 
             shift
             ;;
+        -N|--notify)
+            SL_NOTIFY=true
+            SL_NOTIFY_USER="$2"
+
+            shift
+            ;;
         -r|--refresh)
-            # unset SL_REFRESH_DELAY
-            # unset WATCHOPTS
             SL_REFRESH_DELAY="$2"
             WATCHOPTS="-n${2}"
             
@@ -368,7 +388,6 @@ while [ $# -ge 1 ]; do
             ;;
         -i|--show-internal-names)
             unset MAGIC_COMMAND
-            # unset SL_INTERNAL_NAMES
             SL_INTERNAL_NAMES=true
 
             if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
@@ -377,15 +396,12 @@ while [ $# -ge 1 ]; do
                 MAGIC_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=${SL_TOKEN} $SL_FRIENDS_URL | htmlq '${SL_FRIENDS_HTML_ID}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' -e 's/\">/) /' -e 's|</span>||' -e 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
             fi
             ;;
-        -l|--show-lindens)
-            # unset SL_LINDENS
-            SL_LINDENS=true
-            ;;
         -n|--no-title)
-            # unset WATCH_TILE
             WATCH_TITLE=false
+
             [[ $WATCH_TITLE == false ]] && WATCHOPTS="${WATCHOPTS} -t"
             ;;
+        -l|--show-lindens) SL_LINDENS=true ;;
         --tor) USE_TOR=true ;;
         --debug) DEBUG=true ;;
         -D) DEBUG=false ;;
@@ -409,6 +425,8 @@ if [[ $DEBUG == true ]]; then
     echo "SL_STATUS_FILTER: $SL_STATUS_FILTER"
     echo "SL_INTERNAL_NAMES: $SL_INTERNAL_NAMES"
     echo "SL_LINDENS: $SL_LINDENS"
+    echo "SL_NOTIFY: $SL_NOTIFY"
+    echo "SL_NOTIFY_USER: $SL_NOTIFY_USER"
     echo "SL_TOKEN: $SL_TOKEN"
     echo "SL_TOKEN_ENCODED: $SL_TOKEN_ENCODED"
     echo "SL_REFRESH_DELAY: $SL_REFRESH_DELAY"
@@ -442,7 +460,11 @@ fi
 # Check if the required session-token is defined
 if [[ -n $SL_TOKEN && -n $MAGIC_COMMAND ]]; then
     # Create initial temp script
-    make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND"
+    if [[ $SL_NOTIFY == true ]]; then
+        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND" "$SL_NOTIFY_USER"
+    else
+        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND"
+    fi
 
     # Run magic command in temp script
     watch $WATCHOPTS "$TMP_FILE"
@@ -451,7 +473,8 @@ else
     ERROR_CODE=2
 fi
 
-# Delete created temp file
+# Delete created temp files
+[[ -f "$NOTIF_STAT_FILE" ]] && rm -f "$NOTIF_STAT_FILE"
 [[ -f "$TMP_FILE" ]] && rm -f "$TMP_FILE"
 
 # Check if 'ERROR_CODE' has been defined before exit

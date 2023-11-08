@@ -6,9 +6,17 @@ A simple script to see your [Second Life](https://secondlife.com) friends connec
 
 This script is based on the research published [here](https://gist.github.com/Jiab77/6c38f6566d68784f4591b60c0269a8f0).
 
+## Features
+
+* Show online or offline friends in your terminal
+* Create desktop notification when given friend is connected
+* Print your owned L$ (_can be disabled_)
+
 ## Screenshot
 
 ![image](https://user-images.githubusercontent.com/9881407/136857941-cd9e5248-d325-45d5-bcbc-144769e23f67.png)
+
+> The screenshot might be outdated.
 
 ## Dependencies
 
@@ -41,6 +49,7 @@ SL_REFRESH_DELAY=5
 SL_STATUS_FILTER="online"
 SL_INTERNAL_NAMES=false
 SL_LINDENS=false
+SL_NOTIFY=false
 CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
 WATCH_TITLE=true
 USE_TOR=false
@@ -72,15 +81,16 @@ Usage: ./sl-friends.sh
 Arguments:
 
     -c|--config </path/to/config/file> (Default: ./sl-friends.conf)
-    -t|--token <session-token> (Warning: should not be used as the token will be stored in the command history!)
+    -t|--token [session-token] (Warning: should not be used as the token will be stored in the command history!)
     -f|--filter <online|offline> (Default: online)
-    -u|--url <second-life-friends-url> (Default: https://secondlife.com/my/loadWidgetContent.php?widget=widgetFriends)
+    -u|--url <second-life-friends-url> (Default: https://secondlife.com/my/widget-friends.php)
     -q|--html-id <second-life-html-id-to-target> (Default: #widgetFriendsOnlineContent)
-    -a|--user-agent <user-agent string> (Default: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36)
+    -a|--user-agent <user-agent string> (Default: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36)
     -b|--base64 (Decode base64 encoded session token. [implies -t|--token] - Default: false)
     -i|--show-internal-names (Show Second Life internal names. Default: false)
     -l|--show-lindens (Show amount of owned linden dollars. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
+    -N|--notify <user> (Notify when given user is connected.)
     -r|--refresh <seconds> (Define 'watch' command refresh rate. Default: 5 seconds)
     -h|--help (Show this message)
     --tor (Proxy all requests to Tor using the SOCKS5 Hostname protocol)
@@ -92,6 +102,8 @@ Examples:
     sl-friends.sh
     sl-friends.sh -inr 10
     sl-friends.sh --show-internal-names --no-title --refresh 10
+    sl-friends.sh --refresh 10 --notify john.doe
+    sl-friends.sh -r 10 -N john.doe
     sl-friends.sh -t (it will ask for session-token)
     sl-friends.sh --token (it will ask for session-token)
     sl-friends.sh -bt <base64 encoded session-token>
@@ -109,11 +121,12 @@ Error codes:
     2 - Missing Second Life session token
     3 - Given config file does not exist
 
-Credit:
+Author:
 
-Jiab77 - https://twitter.com/jiab77
+Jiab77
+
 ```
 
 ## Author
 
-[Jiab77](https://twitter.com/jiab77)
+* __Jiab77__
