@@ -18,7 +18,7 @@
 # Version: 1.3.0
 
 # Options
-set +o xtrace
+[[ -r $HOME/.debug ]] && set -o xtrace || set +o xtrace
 
 # Colors
 NL="\n"
