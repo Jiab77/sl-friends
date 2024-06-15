@@ -7,7 +7,7 @@
 # References:
 # - https://wiki.archlinux.org/title/Desktop_notifications
 #
-# Version: 0.0.1
+# Version: 0.1.0
 
 # Options
 [[ -r $HOME/.debug ]] && set -o xtrace || set +o xtrace
@@ -46,9 +46,8 @@ NOTIF_TIMEOUT=5000
 # Internals
 NOTIF_ID=
 NOTIF_SENT=false
-NOTIF_APP_NAME="$(basename "$0" | sed -e 's/.sh//i')"
-NOTIF_REPLACE=$1
-NOTIF_REPLACE_STYLE=${2:-'bold'}
+NOTIF_APP_SCRIPT="$(basename "$0")"
+NOTIF_APP_NAME="${NOTIF_APP_SCRIPT//.sh/}"
 NOTIF_ICON_INFO="dialog-information"
 NOTIF_ICON_TERM="utilities-terminal"
 NOTIF_STAT_FILE="/tmp/.sl-user-connected"
@@ -57,12 +56,23 @@ NOTIF_STAT_FILE="/tmp/.sl-user-connected"
 [[ -r "$(dirname "$0")/sl-notify.conf" ]] && source "$(dirname "$0")/sl-notify.conf"
 
 # Binaries
-BIN_GDBUS=$(which gdbus 2>/dev/null)
-BIN_NOTIFY=$(which notify-send 2>/dev/null)
-BIN_ZENITY=$(which zenity 2>/dev/null)
-# BIN_DBUS=$(which dbus-send 2>/dev/null)
+BIN_GDBUS=$(command -v gdbus 2>/dev/null)
+BIN_NOTIFY=$(command -v notify-send 2>/dev/null)
+BIN_ZENITY=$(command -v zenity 2>/dev/null)
+# BIN_DBUS=$(command -v dbus-send 2>/dev/null)
 
 # Functions
+function die() {
+  echo -e "\nError: $*\n" >&2
+  exit 255
+}
+function print_usage() {
+  echo -e "\nUsage: $NOTIF_APP_SCRIPT [flags] <username> -- Create notification when given user is connected."
+  echo -e "\nFlags:"
+  echo -e "  -h | --help\tPrint this message and exit"
+  echo
+  exit
+}
 function make_bold() {
   echo -n "<b>$1</b>"
 }
@@ -157,6 +167,14 @@ function replace() {
     fi
   fi
 }
+function get_notify_send_version() {
+  local NS_VER ; NS_VER=$(notify-send -v 2>/dev/null | cut -d" " -f2)
+  if [[ -n $NS_VER ]]; then
+    echo -n "$NS_VER"
+  else
+    return 1
+  fi
+}
 function notify() {
   # Avoid displaying notification if already done
   [[ -f $NOTIF_STAT_FILE ]] && NOTIF_SENT=true
@@ -201,13 +219,17 @@ function notify() {
     #
     # Here is a functional implementation for several backends.
     # Some others might be added in the future.
-    
+
     # notify-send
     if [[ -n $BIN_NOTIFY ]]; then
-      if [[ $DEBUG_MODE == true ]]; then
-        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} --print-id && NOTIF_SENT=true
+      if [[ -n "$(get_notify_send_version)" && "$(get_notify_send_version)" == "0.7.9" ]]; then
+        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT && NOTIF_SENT=true
       else
-        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
+        if [[ $DEBUG_MODE == true ]]; then
+          notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} --print-id && NOTIF_SENT=true
+        else
+          notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
+        fi
       fi
 
     # zenity
@@ -239,6 +261,16 @@ function notify() {
   # save notification display status
   [[ $NOTIF_SENT == true ]] && touch $NOTIF_STAT_FILE
 }
+
+# Checks
+[[ $# -eq 0 ]] && print_usage
+
+# Flags
+[[ $1 == "-h" || $1 == "--help" ]] && print_usage
+
+# Init
+NOTIF_REPLACE=$1
+NOTIF_REPLACE_STYLE=${2:-'bold'}
 
 # Main
 if [[ -n $NOTIF_REPLACE ]]; then
