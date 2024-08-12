@@ -15,7 +15,7 @@
 #          ==> Groups: https://secondlife.com/my/widget-groups.php
 #          ==> Lindens: https://secondlife.com/my/widget-linden-dollar.php
 #
-# Version: 1.3.0
+# Version: 1.3.1
 
 # Options
 [[ -r $HOME/.debug ]] && set -o xtrace || set +o xtrace
@@ -76,19 +76,20 @@ TOR_PROXY="socks5h://127.0.0.1:9050"
 
 # Internal config
 SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_FILE="$(basename "$0")"
 SCRIPT_PATH="$(realpath $SCRIPT_DIR)"
 NOTIF_STAT_FILE="/tmp/.sl-user-connected"
-# TMP_FILE="/tmp/$(basename "$0")"
-TMP_FILE="/dev/shm/$(basename "$0")"
+# TMP_FILE="/tmp/$SCRIPT_FILE"
+TMP_FILE="/dev/shm/$SCRIPT_FILE"
 
 # Binaries
-BIN_AWK=$(which awk 2>/dev/null)
-BIN_CURL=$(which curl 2>/dev/null)
-BIN_GREP=$(which grep 2>/dev/null)
-BIN_HTMLQ=$(which htmlq 2>/dev/null)
-BIN_SED=$(which sed 2>/dev/null)
-BIN_WATCH=$(which watch 2>/dev/null)
-BIN_WC=$(which wc 2>/dev/null)
+BIN_AWK=$(command -v awk 2>/dev/null)
+BIN_CURL=$(command -v curl 2>/dev/null)
+BIN_GREP=$(command -v grep 2>/dev/null)
+BIN_HTMLQ=$(command -v htmlq 2>/dev/null)
+BIN_SED=$(command -v sed 2>/dev/null)
+BIN_WATCH=$(command -v watch 2>/dev/null)
+BIN_WC=$(command -v wc 2>/dev/null)
 BIN_NOTIFY="$SCRIPT_PATH/sl-notify.sh"
 
 # Test binaries
@@ -220,17 +221,17 @@ Arguments:
 
 Examples:
 
-    $(basename "$0")
-    $(basename "$0") -inr 10
-    $(basename "$0") --show-internal-names --no-title --refresh 10
-    $(basename "$0") --refresh 10 --notify john.doe
-    $(basename "$0") -r 10 -N john.doe
-    $(basename "$0") -t (it will ask for session-token)
-    $(basename "$0") --token (it will ask for session-token)
-    $(basename "$0") -bt <base64 encoded session-token>
-    $(basename "$0") --base64 --token <base64 encoded session-token>
-    $(basename "$0") -f offline
-    $(basename "$0") --filter offline
+    $SCRIPT_FILE
+    $SCRIPT_FILE -inr 10
+    $SCRIPT_FILE --show-internal-names --no-title --refresh 10
+    $SCRIPT_FILE --refresh 10 --notify john.doe
+    $SCRIPT_FILE -r 10 -N john.doe
+    $SCRIPT_FILE -t (it will ask for session-token)
+    $SCRIPT_FILE --token (it will ask for session-token)
+    $SCRIPT_FILE -bt <base64 encoded session-token>
+    $SCRIPT_FILE --base64 --token <base64 encoded session-token>
+    $SCRIPT_FILE -f offline
+    $SCRIPT_FILE --filter offline
 
 Note:
 
@@ -381,7 +382,7 @@ while [ $# -ge 1 ]; do
         -r|--refresh)
             SL_REFRESH_DELAY="$2"
             WATCHOPTS="-n${2}"
-            
+
             [[ $WATCH_TITLE == false ]] && WATCHOPTS="${WATCHOPTS} -t"
 
             shift

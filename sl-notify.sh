@@ -7,7 +7,7 @@
 # References:
 # - https://wiki.archlinux.org/title/Desktop_notifications
 #
-# Version: 0.1.0
+# Version: 0.1.1
 
 # Options
 [[ -r $HOME/.debug ]] && set -o xtrace || set +o xtrace
@@ -239,17 +239,17 @@ function notify() {
     # gdbus
     elif [[ -n $BIN_GDBUS ]]; then
       gdbus call --session \
-                      --dest org.freedesktop.Notifications \
-                      --object-path /org/freedesktop/Notifications \
-                      --method org.freedesktop.Notifications.Notify \
-                      "$NOTIF_APP_NAME" \
-                      ${NOTIF_ID:-0} \
-                      "$3" \
-                      "$1" \
-                      "$2" \
-                      [] \
-                      {} \
-                      $NOTIF_TIMEOUT && NOTIF_SENT=true
+                 --dest org.freedesktop.Notifications \
+                 --object-path /org/freedesktop/Notifications \
+                 --method org.freedesktop.Notifications.Notify \
+                 "$NOTIF_APP_NAME" \
+                 ${NOTIF_ID:-0} \
+                 "$3" \
+                 "$1" \
+                 "$2" \
+                 [] \
+                 {} \
+                 $NOTIF_TIMEOUT && NOTIF_SENT=true
 
     # error
     else
