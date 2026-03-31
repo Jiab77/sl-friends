@@ -7,10 +7,10 @@
 # References:
 # - https://wiki.archlinux.org/title/Desktop_notifications
 #
-# Version: 0.1.1
+# Version: 0.2.1
 
 # Options
-[[ -r $HOME/.debug ]] && set -o xtrace || set +o xtrace
+[[ -e $HOME/.debug ]] && set -x
 
 # Colors
 NL="\n"
@@ -38,10 +38,10 @@ STRIKETHROUGH="\033[9m"
 
 # Default config
 DEBUG_MODE=false
-NOTIF_ICON=
 NOTIF_TITLE="User connected"
 NOTIF_BODY="The user {x} just connected..."
 NOTIF_TIMEOUT=5000
+MOBILE_NOTIF=false
 
 # Internals
 NOTIF_ID=
@@ -51,6 +51,7 @@ NOTIF_APP_NAME="${NOTIF_APP_SCRIPT//.sh/}"
 NOTIF_ICON_INFO="dialog-information"
 NOTIF_ICON_TERM="utilities-terminal"
 NOTIF_STAT_FILE="/tmp/.sl-user-connected"
+MOBILE_NOTIF_URL="https://ntfy.sh"
 
 # User config (overrides default config)
 [[ -r "$(dirname "$0")/sl-notify.conf" ]] && source "$(dirname "$0")/sl-notify.conf"
@@ -94,23 +95,49 @@ function make_underlined_italic() {
 function make_underlined_italic_bold() {
   echo -n "<u><i><b>$1</b></i></u>"
 }
+function get_sl_notif_id() {
+  local USER_ID="$(echo -n "$USER" | xxd -p)"
+  echo -n "sl-${USER_ID}"
+}
 function replace() {
+  local USE_MARKDOWN=false
+  if [[ $1 == "-m" ]]; then
+    USE_MARKDOWN=true ; shift
+  fi
   if [[ $# -eq 3 ]]; then
     case $3 in
       bold)
-        if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
-          local OR_STR ; OR_STR="${1//'|'/'</b> or <b>'}"
-          echo -n "${2//'{x}'/$(make_bold "$OR_STR")}"
+        if [[ $USE_MARKDOWN == true ]]; then
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'** or **'}"
+            echo -n "${2//'{x}'/**"$OR_STR"**}"
+          else
+            echo -n "${2//'{x}'/**"$1"**}"
+          fi
         else
-          echo -n "${2//'{x}'/$(make_bold "$1")}"
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'</b> or <b>'}"
+            echo -n "${2//'{x}'/$(make_bold "$OR_STR")}"
+          else
+            echo -n "${2//'{x}'/$(make_bold "$1")}"
+          fi
         fi
       ;;
       italic)
-        if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
-          local OR_STR ; OR_STR="${1//'|'/'</i> or <i>'}"
-          echo -n "${2//'{x}'/$(make_italic "$OR_STR")}"
+        if [[ $USE_MARKDOWN == true ]]; then
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'* or *'}"
+            echo -n "${2//'{x}'/*"$OR_STR"*}"
+          else
+            echo -n "${2//'{x}'/*"$1"*}"
+          fi
         else
-          echo -n "${2//'{x}'/$(make_italic "$1")}"
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'</i> or <i>'}"
+            echo -n "${2//'{x}'/$(make_italic "$OR_STR")}"
+          else
+            echo -n "${2//'{x}'/$(make_italic "$1")}"
+          fi
         fi
       ;;
       underline)
@@ -130,11 +157,20 @@ function replace() {
         fi
       ;;
       "italic bold"|"bold italic")
-        if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
-          local OR_STR ; OR_STR="${1//'|'/'</b></i> or <i><b>'}"
-          echo -n "${2//'{x}'/$(make_italic_bold "$OR_STR")}"
+        if [[ $USE_MARKDOWN == true ]]; then
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'*** or ***'}"
+            echo -n "${2//'{x}'/***"$OR_STR"***}"
+          else
+            echo -n "${2//'{x}'/***"$1"***}"
+          fi
         else
-          echo -n "${2//'{x}'/$(make_italic_bold "$1")}"
+          if [[ $(echo -n "$1" | grep -c '|') -ne 0 ]]; then
+            local OR_STR ; OR_STR="${1//'|'/'</b></i> or <i><b>'}"
+            echo -n "${2//'{x}'/$(make_italic_bold "$OR_STR")}"
+          else
+            echo -n "${2//'{x}'/$(make_italic_bold "$1")}"
+          fi
         fi
       ;;
       "italic underline"|"underline italic")
@@ -220,41 +256,60 @@ function notify() {
     # Here is a functional implementation for several backends.
     # Some others might be added in the future.
 
-    # notify-send
-    if [[ -n $BIN_NOTIFY ]]; then
-      if [[ -n "$(get_notify_send_version)" && "$(get_notify_send_version)" == "0.7.9" ]]; then
-        notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT && NOTIF_SENT=true
-      else
-        if [[ $DEBUG_MODE == true ]]; then
-          notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} --print-id && NOTIF_SENT=true
-        else
-          notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
-        fi
-      fi
-
-    # zenity
-    elif [[ -n $BIN_ZENITY ]]; then
-      zenity --notification --window-icon="$3" --text "$1\\n$2" && NOTIF_SENT=true
-
-    # gdbus
-    elif [[ -n $BIN_GDBUS ]]; then
-      gdbus call --session \
-                 --dest org.freedesktop.Notifications \
-                 --object-path /org/freedesktop/Notifications \
-                 --method org.freedesktop.Notifications.Notify \
-                 "$NOTIF_APP_NAME" \
-                 ${NOTIF_ID:-0} \
-                 "$3" \
-                 "$1" \
-                 "$2" \
-                 [] \
-                 {} \
-                 $NOTIF_TIMEOUT && NOTIF_SENT=true
-
-    # error
+    if [[ $MOBILE_NOTIF == true ]]; then
+      curl -kvL "${MOBILE_NOTIF_URL}/$(get_sl_notif_id)" \
+           -H "Title: $1 (${NOTIF_APP_NAME})" \
+           -H "Priority: 3" \
+           -H "Tags: alien,second-life,friends" \
+           -H "Markdown: yes" \
+           -d "👉 $2" &>/dev/null && NOTIF_SENT=true
+      echo -e "\nNotification sent to: ${MOBILE_NOTIF_URL}/$(get_sl_notif_id)\n"
     else
-      echo -e "\nError: Unable to find proper notification backend.\n"
-      exit 1
+      # notify-send
+      if [[ -n $BIN_NOTIFY ]]; then
+        if [[ -n "$(get_notify_send_version)" && "$(get_notify_send_version)" == "0.7.9" ]]; then
+          notify-send "$1" "$2" --icon="$3" --app-name="$NOTIF_APP_NAME" --expire-time=$NOTIF_TIMEOUT && NOTIF_SENT=true
+        else
+          if [[ $DEBUG_MODE == true ]]; then
+            notify-send "$1" "$2" \
+                        --icon="$3" \
+                        --app-name="$NOTIF_APP_NAME" \
+                        --expire-time=$NOTIF_TIMEOUT \
+                        --replace-id=${NOTIF_ID:-0} \
+                        --print-id && NOTIF_SENT=true
+          else
+            notify-send "$1" "$2" \
+                        --icon="$3" \
+                        --app-name="$NOTIF_APP_NAME" \
+                        --expire-time=$NOTIF_TIMEOUT \
+                        --replace-id=${NOTIF_ID:-0} && NOTIF_SENT=true
+          fi
+        fi
+
+      # zenity
+      elif [[ -n $BIN_ZENITY ]]; then
+        zenity --notification --window-icon="$3" --text "$1\\n$2" && NOTIF_SENT=true
+
+      # gdbus
+      elif [[ -n $BIN_GDBUS ]]; then
+        gdbus call --session \
+                   --dest org.freedesktop.Notifications \
+                   --object-path /org/freedesktop/Notifications \
+                   --method org.freedesktop.Notifications.Notify \
+                   "$NOTIF_APP_NAME" \
+                   ${NOTIF_ID:-0} \
+                   "$3" \
+                   "$1" \
+                   "$2" \
+                   [] \
+                   {} \
+                   $NOTIF_TIMEOUT && NOTIF_SENT=true
+
+      # error
+      else
+        echo -e "\nError: Unable to find proper notification backend.\n"
+        exit 1
+      fi
     fi
   fi
 
@@ -274,7 +329,11 @@ NOTIF_REPLACE_STYLE=${2:-'bold'}
 
 # Main
 if [[ -n $NOTIF_REPLACE ]]; then
-  notify "$NOTIF_TITLE" "$(replace "$NOTIF_REPLACE" "$NOTIF_BODY" "$NOTIF_REPLACE_STYLE")" "$NOTIF_ICON_TERM"
+  if [[ $MOBILE_NOTIF == true ]]; then
+    notify "$NOTIF_TITLE" "$(replace -m "$NOTIF_REPLACE" "$NOTIF_BODY" "$NOTIF_REPLACE_STYLE")"
+  else
+    notify "$NOTIF_TITLE" "$(replace "$NOTIF_REPLACE" "$NOTIF_BODY" "$NOTIF_REPLACE_STYLE")" "$NOTIF_ICON_TERM"
+  fi
 else
   notify "$NOTIF_TITLE" "$NOTIF_BODY" "$NOTIF_ICON_TERM"
 fi

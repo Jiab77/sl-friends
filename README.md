@@ -2,6 +2,10 @@
 
 A simple script to see your [Second Life](https://secondlife.com) friends connection status from terminal.
 
+> [!NOTE]
+> You can find a more modern and much better version of my work called __[sl-friends-tui](https://github.com/ohmymex/sl-friends-tui)__.
+> It has been made by my very talented friend __[OhMyMex](https://github.com/ohmymex)__. Please take a look at his work :wink:
+
 ## Research
 
 This script is based on the research published [here](https://gist.github.com/Jiab77/6c38f6566d68784f4591b60c0269a8f0).
@@ -127,6 +131,57 @@ Jiab77
 
 ```
 
+## Notifications
+
+There is now the possibility to send mobile notifications within the [ntfy.sh](https://ntfy.sh) service and the [ntfy](https://docs.ntfy.sh/#step-1-get-the-app) application.
+
+All you need to do to enable this feature is the following:
+
+1. Create a new config file called `sl-notify.conf` and place it inside your `~/.config` folder, with the following content:
+
+```bash
+MOBILE_NOTIF=true
+```
+
+2. Install the [ntfy](https://docs.ntfy.sh/#step-1-get-the-app) application and add the given channel name from the script:
+
+```console
+Notification sent to: https://ntfy.sh/sl-[REDACTED]
+```
+
+> [!NOTE]
+> The `[REDACTED]` part will be replaced by your dedicated __User ID__, so keep it in private place and don't share it to anyone!
+
+> [!IMPORTANT]
+> If you share your generated __User ID__, anyone knowing it will have access to your connected friends from the notifications.
+
+3. You can test the dedicated script __[sl-notify.sh](sl-notify.sh)__ to verify that the notifications are correctly sent that way:
+
+```console
+# Remove existing test file (used to avoid spamming you with tons of notifications)
+rm -fv /tmp/.sl-user-connected
+
+# Run the notification script
+./sl-notify.sh "single-friend"
+
+# OR multiple friends
+./sl-notify.sh "first-friend|second-friend|third-friend|and-so-on"
+
+# Remove the created test file again (to avoid conflicting with the main 'sl-friends.sh' script)
+rm -fv /tmp/.sl-user-connected
+```
+
+> [!NOTE]
+> You normally don't have to run the __[sl-notify.sh](sl-notify.sh)__ script manually as it is automatically called from the __[sl-friends.sh](sl-friends.sh)__ script when called with `-N "first-friend|second-friend|third-friend|and-so-on"`.
+
+> [!IMPORTANT]
+> This feature is still quite experimental and may not work properly yet.
+> A better implementation might be added in the __[sl-friends-tui](https://github.com/ohmymex/sl-friends-tui)__ version made by my friend __[OhMyMex](https://github.com/ohmymex)__.
+
 ## Author
 
 * __Jiab77__
+
+## License
+
+[WFTPL](LICENSE)
