@@ -14,8 +14,11 @@
 #          ==> Friends: https://secondlife.com/my/widget-friends.php
 #          ==> Groups: https://secondlife.com/my/widget-groups.php
 #          ==> Lindens: https://secondlife.com/my/widget-linden-dollar.php
+# 20260401 - New endpoint found:
+#          ==> Events: https://secondlife.com/events/upcoming.php?lang=[lang]&mini=1&offset=[x]&cat=[y]
+#          ==> Example: https://secondlife.com/events/upcoming.php?lang=fr-FR&mini=1&offset=0&cat=0
 #
-# Version: 1.3.2
+# Version: 1.4.0
 
 # Options
 [[ -e $HOME/.debug ]] && set -x
@@ -49,12 +52,16 @@ DEBUG=false
 SL_TOKEN=""
 SL_TOKEN_ENCODED=false
 SL_STATUS_FILTER="online"
+SL_GROUPS_URL="https://secondlife.com/my/widget-groups.php"
 SL_FRIENDS_URL="https://secondlife.com/my/widget-friends.php"
 SL_LINDENS_URL="https://secondlife.com/my/widget-linden-dollar.php"
+SL_GROUPS_LIST_HTML_FILTER=".group-status strong"
+SL_GROUPS_MEMBERS_HTML_FILTER=".group-status td"
 SL_FRIENDS_HTML_FILTER="#widgetFriendsOnlineContent .friend-status .trigger.${SL_STATUS_FILTER} span[title]"
 SL_LINDENS_HTML_FILTER=".main-widget-content strong"
 SL_REFRESH_DELAY=5
 SL_INTERNAL_NAMES=false
+SL_GROUPS=false
 SL_LINDENS=false
 SL_NOTIFY=false
 CURL_USER_AGENTS=(
@@ -71,16 +78,18 @@ USE_TOR=false
 TOR_PROXY="socks5h://127.0.0.1:9050"
 
 # Internal config
+CONFIG_PATH="$HOME/.config"
 SCRIPT_DIR="$(dirname "$0")"
 SCRIPT_FILE="$(basename "$0")"
 SCRIPT_PATH="$(realpath $SCRIPT_DIR)"
+GROUPS_STAT_FILE="/tmp/.sl-groups"
 NOTIF_STAT_FILE="/tmp/.sl-user-connected"
 # TMP_FILE="/tmp/$SCRIPT_FILE"
 TMP_FILE="/dev/shm/$SCRIPT_FILE"
 
 # User config (overrides default config)
 [[ -r "$SCRIPT_PATH/sl-friends.conf" ]] && source "$SCRIPT_PATH/sl-friends.conf"
-[[ -r "$HOME/.config/sl-friends.conf" ]] && source "$HOME/.config/sl-friends.conf"
+[[ -r "$CONFIG_PATH/sl-friends.conf" ]] && source "$CONFIG_PATH/sl-friends.conf"
 
 # Binaries
 BIN_AWK=$(command -v awk 2>/dev/null)
@@ -157,18 +166,24 @@ FRIENDS=$\($1\)
 LINDENS=$\($2\)
 
 # Experimental notifications
-if [[ $ARGC -eq 3 ]]; then
-    if [[ \$(echo -e "\${FRIENDS}" | grep -ciE "$3") -ne 0 ]]; then
-        "$BIN_NOTIFY" "$3"
+if [[ $ARGC -eq 4 ]]; then
+    if [[ \$(echo -e "\${FRIENDS}" | grep -ciE "$4") -ne 0 ]]; then
+        "$BIN_NOTIFY" "$4"
     else
         [[ -f "$NOTIF_STAT_FILE" ]] && rm -f "$NOTIF_STAT_FILE"
+        [[ -f "$GROUPS_STAT_FILE" ]] && rm -f "$GROUPS_STAT_FILE"
     fi
 fi
+
+# Execute 'GROUPS' command
+$3 > $GROUPS_STAT_FILE
 
 # Display result and count
 echo -e "\${FRIENDS}"
 echo ; echo -n "Connected: "
-[[ -z \$FRIENDS ]] && echo "0" || echo "\${FRIENDS}" | wc -l ; echo
+[[ -z \$FRIENDS ]] && echo "0" || echo "\$FRIENDS" | wc -l
+echo ; echo -n "Groups: "
+[[ ! -r $GROUPS_STAT_FILE ]] && echo "0" || cat "$GROUPS_STAT_FILE" | wc -l ; echo
 [[ -n \$LINDENS ]] && echo "Total Linden Dollars: \$LINDENS"
 EOF
 
@@ -192,6 +207,8 @@ Arguments:
     -a|--user-agent <user-agent string> (Default: $CURL_USER_AGENT)
     -b|--base64 (Decode base64 encoded session token. [implies -t|--token] - Default: $SL_TOKEN_ENCODED)
     -i|--show-internal-names (Show Second Life internal names. Default: false)
+    -G|--show-groups-list (Show subscribed groups list. Default: false)
+    -g|--show-groups (Show subscribed groups. Default: false)
     -l|--show-lindens (Show amount of owned linden dollars. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
     -N|--notify <user> (Notify when given user is connected.)
@@ -233,6 +250,32 @@ EOF
 
 }
 
+# Generate subscribed groups list
+show_groups_list() {
+    local ALL_GROUPS
+    local ALL_MEMBERS
+    local INDEX=0
+
+    if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
+      curl --silent -A "${CURL_USER_AGENT}" -b session-token=$(echo -n $SL_TOKEN | base64 -d 2>/dev/null) $SL_GROUPS_URL | htmlq "${SL_GROUPS_LIST_HTML_FILTER}" | cut -d'>' -f2 | cut -d'<' -f1 > $GROUPS_STAT_FILE
+      ALL_MEMBERS=($(curl --silent -A "$CURL_USER_AGENT" -b session-token=$(echo -n $SL_TOKEN | base64 -d 2>/dev/null) $SL_GROUPS_URL | htmlq "${SL_GROUPS_MEMBERS_HTML_FILTER}" | cut -d'>' -f2 | cut -d'<' -f1 | tr '\n' ' '))
+    else
+      curl --silent -A "${CURL_USER_AGENT}" -b session-token=$SL_TOKEN $SL_GROUPS_URL | htmlq "${SL_GROUPS_LIST_HTML_FILTER}" | cut -d'>' -f2 | cut -d'<' -f1 > $GROUPS_STAT_FILE
+      ALL_MEMBERS=($(curl --silent -A "$CURL_USER_AGENT" -b session-token=$SL_TOKEN $SL_GROUPS_URL | htmlq "${SL_GROUPS_MEMBERS_HTML_FILTER}" | cut -d'>' -f2 | cut -d'<' -f1 | tr '\n' ' '))
+    fi
+
+    echo -e "\n-= Your Second Life Groups =-"
+    echo -e "\nLegend: Name (Members)\n"
+
+    cat $GROUPS_STAT_FILE | while read -r line; do
+        echo "$((INDEX + 1)). $line (${ALL_MEMBERS[$INDEX]})"
+        ((INDEX++))
+    done
+
+    [[ -f $GROUPS_STAT_FILE ]] && rm -f $GROUPS_STAT_FILE
+    exit
+}
+
 # Initial command
 if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
     # MAGIC_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=$(echo -n $SL_TOKEN | base64 -d 2>/dev/null) $SL_FRIENDS_URL | htmlq '${SL_FRIENDS_HTML_FILTER}' | grep -i -A2 'trigger ${SL_STATUS_FILTER}' | grep -i 'span' | grep -v '<br>' | sed -e 's/<span title=\"/(/' -e 's/\">/) /' -e 's|</span>||' -e 's/ Resident//' -e 's/^[[:blank:]]*/    /;s/[[:blank:]]*$//'"
@@ -244,9 +287,9 @@ fi
 
 # Arguments
 WATCHOPTS="-n${SL_REFRESH_DELAY}"
-SHORTOPTS="b,c:,N:,r:,t::,u:,q:,a:,f:,n,i,l,h,D"
+SHORTOPTS="b,c:,N:,r:,t::,u:,q:,a:,f:,n,i,G,g,l,h,D"
 LONGOPTS="config:,notify:,refresh:,token::,url:,html-id:,user-agent:,filter:"
-LONGOPTS+=",base64,filter:,no-title,show-internal-names,show-lindens,help,debug,tor,thc"
+LONGOPTS+=",base64,filter:,no-title,show-internal-names,show-groups-list,show-groups,show-lindens,help,debug,tor,thc"
 ARGS=$(getopt -l "${LONGOPTS}" -o "${SHORTOPTS}" -- "$@")
 eval set -- "$ARGS"
 while [ $# -ge 1 ]; do
@@ -409,6 +452,8 @@ while [ $# -ge 1 ]; do
 
             [[ $WATCH_TITLE == false ]] && WATCHOPTS="${WATCHOPTS} -t"
         ;;
+        -G|--show-groups-list) show_groups_list ;;
+        -g|--show-groups) SL_GROUPS=true ;;
         -l|--show-lindens) SL_LINDENS=true ;;
         --tor) USE_TOR=true ;;
         --debug) DEBUG=true ;;
@@ -432,6 +477,7 @@ if [[ $DEBUG == true ]]; then
     echo "SL_FRIENDS_HTML_FILTER: $SL_FRIENDS_HTML_FILTER"
     echo "SL_STATUS_FILTER: $SL_STATUS_FILTER"
     echo "SL_INTERNAL_NAMES: $SL_INTERNAL_NAMES"
+    echo "SL_GROUPS: $SL_GROUPS"
     echo "SL_LINDENS: $SL_LINDENS"
     echo "SL_NOTIFY: $SL_NOTIFY"
     echo "SL_NOTIFY_USER: $SL_NOTIFY_USER"
@@ -459,9 +505,21 @@ else
     LINDENS_COMMAND=""
 fi
 
+# Generate Groups related command
+if [[ $SL_GROUPS == true ]]; then
+    if [[ -n $SL_TOKEN_ENCODED && $SL_TOKEN_ENCODED == true ]]; then
+        GROUPS_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=$(echo -n $SL_TOKEN | base64 -d 2>/dev/null) $SL_GROUPS_URL | htmlq '${SL_GROUPS_LIST_HTML_FILTER}' | cut -d'>' -f2 | cut -d'<' -f1"
+    else
+        GROUPS_COMMAND="curl --silent -A \"\$(gen_rand_ua)\" -b session-token=${SL_TOKEN} $SL_GROUPS_URL | htmlq '${SL_GROUPS_LIST_HTML_FILTER}' | cut -d'>' -f2 | cut -d'<' -f1"
+    fi
+else
+    GROUPS_COMMAND=""
+fi
+
 # Enable Tor proxying
 if [[ $USE_TOR == true ]]; then
     MAGIC_COMMAND=${MAGIC_COMMAND/curl/"curl -x $TOR_PROXY"}
+    GROUPS_COMMAND=${GROUPS_COMMAND/curl/"curl -x $TOR_PROXY"}
     LINDENS_COMMAND=${LINDENS_COMMAND/curl/"curl -x $TOR_PROXY"}
 fi
 
@@ -469,9 +527,9 @@ fi
 if [[ -n $SL_TOKEN && -n $MAGIC_COMMAND ]]; then
     # Create initial temp script
     if [[ $SL_NOTIFY == true ]]; then
-        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND" "$SL_NOTIFY_USER"
+        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND" "$GROUPS_COMMAND" "$SL_NOTIFY_USER"
     else
-        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND"
+        make_temp_script "$MAGIC_COMMAND" "$LINDENS_COMMAND" "$GROUPS_COMMAND"
     fi
 
     # Run magic command in temp script
@@ -482,6 +540,7 @@ else
 fi
 
 # Delete created temp files
+[[ -f "$GROUPS_STAT_FILE" ]] && rm -f "$GROUPS_STAT_FILE"
 [[ -f "$NOTIF_STAT_FILE" ]] && rm -f "$NOTIF_STAT_FILE"
 [[ -f "$TMP_FILE" ]] && rm -f "$TMP_FILE"
 

@@ -13,6 +13,7 @@ This script is based on the research published [here](https://gist.github.com/Ji
 ## Features
 
 * Show online or offline friends in your terminal
+* Show subscribed groups and members count
 * Create desktop notification when given friend is connected
 * Print your owned L$ (_can be disabled_)
 
@@ -45,13 +46,16 @@ You can edit the script and modify the following values:
 DEBUG=true
 SL_TOKEN=""
 SL_TOKEN_ENCODED=false
-SL_FRIENDS_URL="https://secondlife.com/my/widget-friends.php"
-SL_FRIENDS_HTML_ID="#widgetFriendsOnlineContent"
-SL_LINDENS_URL="https://secondlife.com/my/widget-linden-dollar.php"
-SL_LINDENS_HTML_CLASS=".main-widget-content"
-SL_REFRESH_DELAY=5
 SL_STATUS_FILTER="online"
+SL_GROUPS_URL="https://secondlife.com/my/widget-groups.php"
+SL_FRIENDS_URL="https://secondlife.com/my/widget-friends.php"
+SL_LINDENS_URL="https://secondlife.com/my/widget-linden-dollar.php"
+SL_GROUPS_LIST_HTML_FILTER=".group-status strong"
+SL_GROUPS_MEMBERS_HTML_FILTER=".group-status td"
+SL_FRIENDS_HTML_FILTER="#widgetFriendsOnlineContent .friend-status .trigger.${SL_STATUS_FILTER} span[title]"
+SL_LINDENS_HTML_FILTER=".main-widget-content strong"
 SL_INTERNAL_NAMES=false
+SL_GROUPS=false
 SL_LINDENS=false
 SL_NOTIFY=false
 CURL_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"
@@ -92,6 +96,8 @@ Arguments:
     -a|--user-agent <user-agent string> (Default: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36)
     -b|--base64 (Decode base64 encoded session token. [implies -t|--token] - Default: false)
     -i|--show-internal-names (Show Second Life internal names. Default: false)
+    -G|--show-groups-list (Show subscribed groups list. Default: false)
+    -g|--show-groups (Show subscribed groups. Default: false)
     -l|--show-lindens (Show amount of owned linden dollars. Default: false)
     -n|--no-title (Remove 'watch' command title displayed. Default: false)
     -N|--notify <user> (Notify when given user is connected.)
